@@ -188,9 +188,11 @@ class CommandDrop
   end
 
   def execute(board)
-    if board.can_drop?(board.asuka)
+    if board.can_drop?(board.asuka.pos)
       # 怖い。
+      board.inventory.delete(@item)
       @item.pos = board.asuka.pos
+      board.items << @item
     end
   end
 
@@ -214,10 +216,9 @@ class CommandMove < Command
     # アスカの移動は、二種類ある行動のうちでは簡単な方だ。アスカは盗賊
     # 番の居る座標や、壁、岩のある座標へは移動できない。
 
-    x, y = board.asuka.pos
-
-    if asuka_can_move_into?(board, [x + xoff, y + yoff])
-      board.asuka.pos = [x + xoff, y + yoff]
+    if asuka_can_move_into?(board, Vec::plus(board.asuka.pos, dir))
+      board.asuka.pos = Vec::plus(board.asuka.pos, dir)
+      board.asuka.dir = dir
       item = board.item_at(board.asuka.pos)
       if pick && item
         board.items.delete(item)

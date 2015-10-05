@@ -85,11 +85,16 @@ class Board
     render_inventory +
       render_characters +
       render_items +
+      render_traps +
       render_map
   end
 
+  def render_traps
+    "罠: " + traps.map { |trap| "#{trap.to_s}#{Vec::vec_to_s(trap.pos)}" }.join + "\n"
+  end
+
   def render_characters
-    "キャラ: \n" + characters.map(&:to_s).join("\n") + "\n"
+    "キャラ: \n" + characters.map { |character| "  #{character.to_s(&:to_s)}\n" }.join
   end
 
   def render_items
@@ -177,7 +182,7 @@ class Board
 
   def can_drop?(pos)
     return false if ['■', '◆'].include?(Map::at(map, pos))
-    return false if items.any? { |item| item.pos == pos }
+    return false if item_at(pos)
     return true
   end
 
@@ -246,6 +251,12 @@ class Board
     }
     raise '落下できない場合の高とびは未実装' unless newpos
     return newpos
+  end
+
+  # 階段が pos に存在する。
+  #
+  def kaidan_at?(pos)
+    kaidan == pos
   end
 
 end

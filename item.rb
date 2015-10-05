@@ -37,17 +37,19 @@ class Item < Struct.new(:name, :number, :pos)
     name[-1]
   end
 
-  # Board を返す。
+  # アイテムを actor が使う。
   def use(board, actor)
     case name
     when Item::WAND_HIKIYOSE
-      execute_hikiyose(board, actor)
+      use_hikiyose(board, actor)
     when Item::WAND_BASHOGAE
-      execute_bashogae(board, actor)
+      use_bashogae(board, actor)
+    when Item::WAND_FUKITOBASHI
+      use_fukitobashi(board, actor)
     else
       # デフォルトのアイテム使用ルーチン。アイテムの効果は実装しない。
       # 無くなるだけ。
-      inventory.delete(item)
+      board.inventory.delete(self)
     end
   end
 
@@ -55,7 +57,7 @@ class Item < Struct.new(:name, :number, :pos)
 
   # ひきよせの杖を振る。
   #
-  def execute_hikiyose(board, actor)
+  def use_hikiyose(board, actor)
     wand = self
     dir = actor.dir
 
@@ -65,11 +67,11 @@ class Item < Struct.new(:name, :number, :pos)
       return
     end
 
-    # まず魔法弾の軌道を計算し、何かのエンティティ（今回は盗賊番だけを
-    # 考慮する）に着弾したかどうかを判定する。
+    # まず魔法弾の軌道を計算し、何かのエンティティに着弾したかどうかを
+    # 判定する。
     # 
-    # 着弾しなかった場合は、局面は変化しない。した場合は、魔法弾
-    # の方向と逆方向にエンティティをひきよせる。
+    # 着弾しなかった場合は、局面は変化しない。した場合は、魔法弾の方向
+    # と逆方向にエンティティをひきよせる。
     # 
     # ひきよせの効果は障害物に当たるまで、エンティティが移動するという
     # もの。（いろいろはしょる）
@@ -77,13 +79,14 @@ class Item < Struct.new(:name, :number, :pos)
     # （アスカと敵をキャラクターとして統一的に扱えば、移動可能の判定を
     # 流用できるんだよなあ…）
 
-    target, bullet_dir = hikiyose_target_direction(board, dir)
+    target, bullet_dir = mover_target_direction(board, dir)
     unless target
       # 何にも当たらなかったので、局面は変化しない。
       puts "何にも当たらなかった"
       return
     end
 
+    # 着弾の方向と逆向きにひきよせ効果を発動する。
     newpos = hikiyose_move(board, target, Vec::opposite_of(bullet_dir))
 
     # 動かなかった。
@@ -97,7 +100,7 @@ class Item < Struct.new(:name, :number, :pos)
       # 引きよせるのはキャラクター。
       chara, = board.characters_at(target)
 
-      board.characters.delete(chara)
+      board.characters -= [chara]
       newpos = board.character_drop(newpos, chara.dir)
       chara.pos = newpos
       board.characters << chara
@@ -125,13 +128,82 @@ class Item < Struct.new(:name, :number, :pos)
     end
   end
 
+  # 場所替えの杖を振る処理だ。
+  def use_bashogae(board, actor)
+    return if number == 0
+
+    # 杖の回数が１減る。
+    self.number -= 1
+
+    # 場所替えの弾道を計算して、キャラクターに当たるかどうか判定する。
+    # 当たらなかった場合は何も起こらないが、当たった場合はそのキャラク
+    # ターと場所替える。
+    # 
+    # 場所替えた後、着地位置を計算し、着地する。着地位置にワナがあった
+    # 場合はワナが発動する。
+
+    traj = normal_bullet_trajectory(board, actor.dir).to_a
+    if traj.size == 1
+      return
+    end
+
+    target_chara_pos, _bullet_dir = traj.last
+
+    target, = board.characters_at(target_chara_pos)
+
+    if target == nil
+      return
+    end
+
+    # 場所替えた時の、アスカと敵の落下位置ってどういう順番で決まるんだ
+    # ろう？　問題になる場合はないのかな。敵が先に落下してアスカの落下
+    # 位置が変わるとか。お互いに相手が存在できない地形に立っていないと
+    # だめだから、ないか。
+    # 
+    # >>920 ローグライクゲームの魔法弾の再現だよ〜
+    #
+    board.characters -= [actor]
+    board.characters -= [target]
+    new_target_pos   =  actor.pos
+    new_actor_pos    =  target.pos
+    target.pos       =  board.character_drop(new_target_pos, target.dir)
+    actor.pos        =  board.character_drop(new_actor_pos, actor.dir)
+    board.characters << actor
+    board.characters << target
+
+    trap = board.trap_at(actor.pos)
+    if trap
+      trap.step(board, actor)
+    end
+
+  end
+
+  # ふきとばしの杖を振る処理だ。
+  def use_fukitobashi(board, dir)
+    raise '実装してないよ'
+
+    # 杖の回数が無ければ振れない。あれば回数は１減る。（この辺はどの杖
+    # でも同じだから統一したい）
+    return if number == 0
+
+    self.number -= 1
+
+    target_pos, bullet_dir = mover_target_direction(board, dir)
+    unless target_pos
+      return
+    end
+    
+    newpos = fukitobashi_move(board, target_pos, Vec::opposite_of(bullet_dir))
+
+  end
+
   # (Board, [Fixnum,Fixnum]) → [?[Fixnum,Fixnum], ?[Fixnum,Fixnum]]
-  def hikiyose_target_direction(board, dir)
+  def mover_target_direction(board, dir)
     # ひきよせの魔法弾の弾道を計算して、エンティティに当たった場合はそ
     # のエンティティの座標と、当たった時の魔法弾の方向ベクトルを返し、
     # 何にも当たらなかった場合は [nil, nil] を返す。
 
-    traj = magic_bullet_trajectory(board, dir).to_a
+    traj = mover_bullet_trajectory(board, dir).to_a
     if traj.size == 1
       return [nil, nil]
     end

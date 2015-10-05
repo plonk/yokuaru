@@ -93,7 +93,7 @@ class Character < Struct.new(:name, :pos, :dir, :hp)
   end
 
   def to_s
-    "#{name}、位置#{Vec::vec_to_s(pos)}、#{Vec::dir_to_s(dir)}向き。"
+    "#{name}、HP#{hp}、位置#{Vec::vec_to_s(pos)}、#{Vec::dir_to_s(dir)}向き。"
   end
 
   def dead?
@@ -120,12 +120,19 @@ class Trap < Struct.new(:name, :pos)
     # ず。
     board.traps.delete(self)
   end
-
+  
+  # 落とし穴のワナが踏まれた時の処理。
   def step(board, character)
+    character.hp = 0
+    board.traps.delete(self)
   end
 
   def symbol
     name[-1]
+  end
+
+  def to_s
+    "落とし穴"
   end
 
 end
@@ -141,6 +148,7 @@ end
 #
 module Map
   def at(grid, point)
+    raise TypeError unless grid.is_a?(Array) and point.is_a?(Array)
     raise RangeError unless within_bounds?(grid, point)
 
     x, y = point
@@ -480,17 +488,43 @@ end
 
 require_relative 'command'
 
-# 魔法弾の弾道を計算する。今回は引きよせの杖なのでアイテムにも当たるが、
-# 本来は杖によって当たる対象は異なる。
+# ふきとばしの杖、ひきよせの杖の魔法弾の弾道を計算する。ベクトルの対の
+# リストを返す。１つ目のベクトルは魔法弾の位置、２つ目のベクトルは向き
+# を表わす。
 #
-# (Board, [Fixnum,Fixnum]) → [[[Fixnum,Fixnum], [Fixnum,Fixnum]]]
-def magic_bullet_trajectory(board, dir)
-  pos = board.asuka.pos
+# (Board, [Fixnum,Fixnum]) → [ [[Fixnum,Fixnum],[Fixnum,Fixnum]] ]
+def mover_bullet_trajectory(board, dir)
+  res = []
+  max_bullet_trajectory(board, dir).each.with_index do |(pos, dir), index|
+    res << [pos, dir]
+    if index != 0 and (board.characters_at(pos).any? or
+                      board.item_at(pos) != nil or
+                      board.kaidan_at?(pos))
+      break
+    end
+  end
+  res
+end
+
+# 場所替えの杖など、通常の杖の魔法弾の弾道を計算する。
+#
+# (Board, [Fixnum,Fixnum]) → [ [[Fixnum,Fixnum],[Fixnum,Fixnum]] ]
+def normal_bullet_trajectory(board, dir)
+  res = []
+  max_bullet_trajectory(board, dir).each.with_index do |(pos, dir), idx|
+    res << [pos, dir]
+    if idx != 0 and board.characters_at(pos).any?
+      break
+    end
+  end
+  res
+end
+
+def max_bullet_trajectory(board, dir)
+  pos        = board.asuka.pos
   # この際、壁と岩を同一視する。
-  walls = positions('■', board.map) + positions('◆', board.map)
-  characters = board.characters
-  items = board.items
-  reflected = false
+  walls      = positions('■', board.map) + positions('◆', board.map)
+  reflected  = false
 
   Enumerator.new do |yielder|
     loop do
@@ -510,9 +544,7 @@ def magic_bullet_trajectory(board, dir)
       # CASE D: (x', y) も (x, y') も壁でない場合 → 角反射。
       # 
       # CASE C は内角に向かってつっこんだ場合。CASE D は角反射になる。
-      if characters.include?(pos) or items.any? { |item| item.pos == pos } or board.kaidan == pos
-        break
-      elsif walls.include? [x + xoff, y + yoff]
+      if walls.include? [x + xoff, y + yoff]
         if xoff * yoff == 0
           break
         else
