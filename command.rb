@@ -28,7 +28,7 @@ class Command
       raise 'abstract class Command cannot be instantiated'
     end
   end
-    
+  
   # 移動コマンドなどの方向。i.e. [-1, 0, 1].product([-1, 0, 1]) - [[0, 0]]
   DIRS = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]] 
 
@@ -50,15 +50,10 @@ end
 
 class CommandPick < Command
   def execute(board)
-    if board.items.any? { |item| item.pos == board.asuka }
-      item = board.items.find { |item| item.pos == board.asuka }
-      return board.dup_except {
-        self.items = self.items - [item]
-        self.inventory = self.inventory.dup
-        self.inventory.add(item.dup_except { self.pos = nil })
-      }
-    else
-      return board
+    item = board.items.any? { |_item| _item.pos == board.asuka }
+    if item
+      board.items.delete(item)
+      board.inventory.add(item)
     end
   end
 
@@ -119,7 +114,8 @@ class CommandThrow < Command
       # まがりの腕輪使ったら軌道だけじゃなくて方向も計算しないといけな
       # いな。
       if chara
-        return item.hit(chara, dir, board.asuka)
+        item.hit(chara, dir, board.asuka)
+        return
       end
     end
     #
@@ -129,12 +125,11 @@ class CommandThrow < Command
 
     # 足元である場合もあることに注意。
     drop_candidate = max_traj.last
-    if item.pos == drop_candidate
-      return board
-    else
+    if item.pos != drop_candidate
       # 着地処理の前にアイテムを削除しておく。
-      return item_land(board.dup_except { destroy_item!(item) },
-                       item, drop_candidate)
+      board.destroy_item!(item)
+      item_land(board, item, drop_candidate)
+      return
     end
   end
 
@@ -147,14 +142,12 @@ class CommandThrow < Command
   def item_land(board, item, drop_candidate)
     trap = board.trap_at(drop_candidate)
     if trap
-      return trap.land(board, item)
+      trap.land(board, item)
     else
       # アイテムの着地
       actual_pos = board.item_drop(drop_candidate)
       if actual_pos
-        return board.dup_except { items << item.dup_except { self.pos = actual_pos } }
-      else
-        return board
+        board.item_at(pos).pos = actual_pos
       end
     end
   end
@@ -175,17 +168,16 @@ class CommandThrow < Command
       hits << pos if board.characters.include?(pos)
     end
 
-    newboard = hits.reduce(board.dup) { |acc, src|
-      dest = hikiyose_move(acc, src, Vec::opposite_of(dir))
-      acc.dup_except {
-        self.characters = self.characters - [src] + [dest]
+    hits.each do |src|
+      hits.reduce(board.dup) { |acc, src|
+        hikiyose_move(board, src, Vec::opposite_of(dir))
+        board.characters_at(src).pos = dest
       }
-    }
 
-    newboard.destroy_item!(item)
-    return newboard
+      board.destroy_item!(item)
+    end
+
   end
-
 end
 
 class CommandDrop    
@@ -197,14 +189,8 @@ class CommandDrop
 
   def execute(board)
     if board.can_drop?(board.asuka)
-      return board.dup_except {
-        # 持ち物から一つだけ削除する。
-        self.inventory = self.inventory.dup
-        self.inventory.delete(item)
-        self.items += [item.dup_except { self.pos = board.asuka }]
-      }
-    else
-      return board
+      # 怖い。
+      @item.pos = board.asuka.pos
     end
   end
 
@@ -231,19 +217,13 @@ class CommandMove < Command
     x, y = board.asuka.pos
 
     if asuka_can_move_into?(board, [x + xoff, y + yoff])
-      newboard = board.dup
-      newboard.asuka.pos = [x + xoff, y + yoff]
-      item = newboard.items.find { |item| item.pos == newboard.asuka.pos }
+      board.asuka.pos = [x + xoff, y + yoff]
+      item = board.item_at(board.asuka.pos)
       if pick && item
-        newboard.items -= [item]
-        newitem = item.dup
-        newitem.pos = nil
-        newboard.inventory = newboard.inventory.dup
-        newboard.inventory.add(newitem)
+        board.items.delete(item)
+        item.pos = nil
+        board.inventory.add(item)
       end
-      return newboard
-    else
-      return board
     end
 
   end
@@ -289,13 +269,8 @@ class CommandUse < Command
   end
 
   def execute(board)
-    newdir = dir
-    newboard = board.dup_except {
-      asuka = self.asuka
-      self.characters -= [self.asuka]
-      self.characters += [asuka.dup_except { self.dir = newdir } ]
-    }
-    return item.use(newboard, newboard.asuka)
+    board.asuka.dir = @dir
+    item.use(board, board.asuka)
   end
 
   def to_s

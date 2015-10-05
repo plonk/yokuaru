@@ -41,17 +41,13 @@ class Item < Struct.new(:name, :number, :pos)
   def use(board, actor)
     case name
     when Item::WAND_HIKIYOSE
-      return execute_hikiyose(board, actor)
+      execute_hikiyose(board, actor)
     when Item::WAND_BASHOGAE
-      return execute_bashogae(board, actor)
+      execute_bashogae(board, actor)
     else
       # デフォルトのアイテム使用ルーチン。アイテムの効果は実装しない。
       # 無くなるだけ。
-      item = self
-      return board.dup_except {
-        self.inventory = self.inventory.dup
-        self.inventory.delete(item)
-      }
+      inventory.delete(item)
     end
   end
 
@@ -66,7 +62,7 @@ class Item < Struct.new(:name, :number, :pos)
     # 杖の回数が 0 の場合は何も起きない。
     if wand.number == 0
       puts "杖の回数が無い"
-      return board 
+      return
     end
 
     # まず魔法弾の軌道を計算し、何かのエンティティ（今回は盗賊番だけを
@@ -85,65 +81,48 @@ class Item < Struct.new(:name, :number, :pos)
     unless target
       # 何にも当たらなかったので、局面は変化しない。
       puts "何にも当たらなかった"
-      return board
+      return
     end
 
     newpos = hikiyose_move(board, target, Vec::opposite_of(bullet_dir))
 
     # 動かなかった。
     if target == newpos
-      return board
+      return
     end
 
     # 引きよせの杖で newpos に落下しようとする。キャラクターとアイテム
     # の場合で落下法則が異なる。
-    newboard = board.dup
-    if newboard.characters_at(target).any?
+    if board.characters_at(target).any?
       # 引きよせるのはキャラクター。
-      chara, = newboard.characters_at(target)
+      chara, = board.characters_at(target)
 
-      newboard.characters = newboard.characters - [chara]
+      board.characters.delete(chara)
       newpos = board.character_drop(newpos, chara.dir)
-      newboard.characters = newboard.characters + [chara.dup_except { self.pos = newpos }]
-    elsif newboard.item_at(target) != nil
+      chara.pos = newpos
+      board.characters << chara
+    elsif board.item_at(target) != nil
       # 引きよせるのはアイテム。
 
       # p "アイテム引きよせ"
 
       # 実際に落ちる位置を調整する。
-      newpos = newboard.item_drop(newpos)
+      newpos = board.item_drop(newpos)
 
-      olditem = newboard.item_at(target)
-      newboard.items = newboard.items - [olditem] + [olditem.dup_except { self.pos = newpos }]
+      board.item_at(target).pos = newpos
     else
       unless board.kaidan == target
         raise 'uncovered case'
       end
 
-      newboard.kaidan = newpos
+      board.kaidan = newpos
     end
 
     # 引きよせの杖の回数を減らす。あるいは減らさない。
     if true
       # 足元の杖を使った場合は、杖は inventory ではなく、items にある。
-      newboard.inventory = newboard.inventory.map { |_item|
-        if _item == wand
-          wand.dup_except { self.number -= 1 }
-        else
-          _item
-        end
-      }
-      # 同じことを繰り返し書きたくない…
-      newboard.items = newboard.items.map { |_item|
-        if _item == wand
-          wand.dup_except { self.number -= 1 }
-        else
-          _item
-        end
-      }.to_set
+      wand.number -= 1
     end
-
-    return newboard
   end
 
   # (Board, [Fixnum,Fixnum]) → [?[Fixnum,Fixnum], ?[Fixnum,Fixnum]]

@@ -118,11 +118,7 @@ class Trap < Struct.new(:name, :pos)
   def land(board, item)
     # 落とし穴のロジックを実装する。item は board から削除されているは
     # ず。
-    trap = self
-    return board.dup_except {
-      self.traps = traps.dup 
-      self.traps.delete(trap)
-    }
+    board.traps.delete(self)
   end
 
   def step(board, character)
@@ -166,15 +162,6 @@ module Map
   end
   module_function :within_bounds?
 
-end
-
-class Object
-  def dup_except(&block)
-    raise unless block
-    _clone = dup
-    _clone.instance_eval(&block)
-    return _clone
-  end
 end
 
 # ２次元ベクトルの操作だ。

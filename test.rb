@@ -12,22 +12,22 @@ usi = board.characters.find_by(:name, 'うしわか丸')
 usi.dir = [-1,-1]
 puts board
 
-# h "右に動いてみる"
-# c = Command.create(:move, [+1, 0], true)
-# board = c.execute(board)
-# puts board
+h "右に動いてみる"
+c = Command.create(:move, [+1, 0], true)
+c.execute(board)
+puts board
 
-# h "左上に場所替えの杖を振る"
-# wand = board.inventory.find_by(:name, Item::WAND_BASHOGAE)
-# p wand
-# board = Command.create(:use, [-1, -1], wand).execute(board)
-# puts board
-
-h "上にひきよせの杖を振る"
+h "左上に場所替えの杖を振る"
 wand = board.inventory.find_by(:name, Item::WAND_HIKIYOSE)
 p wand
-board = Command.create(:use, [0, -1], wand).execute(board)
+Command.create(:use, [-1, -1], wand).execute(board)
 puts board
+
+# h "上にひきよせの杖を振る"
+# wand = board.inventory.find_by(:name, Item::WAND_HIKIYOSE)
+# p wand
+# Command.create(:use, [0, -1], wand).execute(board)
+# puts board
 
 # h "上に動いてみる"
 # c = Command.create(:move, [0, -1])

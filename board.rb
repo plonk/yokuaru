@@ -21,6 +21,11 @@ class Board
     self.traps      = traps
   end
 
+  # → Board
+  def deep_copy
+    Marshal.load(Marshal.dump(self))
+  end
+
   attr_reader :map
 
   # これらの情報が外部から見えるようにしよう。
