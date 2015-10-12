@@ -5,12 +5,12 @@ class Board
   # アイテムの一覧、及び階段の位置を持っている。
 
   COMPONENT_NAMES = [:inventory, :items, :characters, :kaidan, :traps]
-  COMPONENT_TYPES = [Multiset, Set, Set, Array, Set]
+  COMPONENT_TYPES = [Multiset, Set, Set, Kaidan, Set]
 
   def initialize(map, inventory, items, characters, kaidan, traps)
     # map は [[String]]、inventory は Multiset<Item>、items は
     # Set<Item>、characters は Set {[Fixnum,Fixnum]}、kaidan は
-    # [Fixnum,Fixnum] で、その座標を表わす。
+    # Kaidan。
 
     @map = map
 
@@ -50,6 +50,21 @@ class Board
     characters.select { |character|
       character.pos == pos
     }
+  end
+
+  # → ?Character
+  def character_at(pos)
+    chara, = characters_at(pos)
+    return chara
+  end
+
+  def top_object_at(pos)
+    chara, = characters_at(pos)
+    return chara if chara
+    item = item_at(pos)
+    return item if item
+    return kaidan if kaidan.pos == pos
+    return nil
   end
 
   def item_at(pos)
@@ -107,7 +122,7 @@ class Board
 
   def render_map
     background = map.map(&:dup)
-    Map::set!(background, kaidan, '段')
+    Map::set!(background, kaidan.pos, '段')
 
     [*traps, *items, *characters].each do |actor|
       Map::set!(background, actor.pos, actor.symbol)
@@ -116,20 +131,12 @@ class Board
     background.map(&:join).map { |s| s + "\n" }.join
   end
 
-  MAMMAL_SOLUTION = Set.new([[1, 3], [3, 1], [5, 3], [3, 5]])
-  ZASSOU_SOLUTION = MAMMAL_SOLUTION
   def solved?
-    zassou_positions = Set.new(items.select { |item| item.name == '雑草' }.map(&:pos))
-    characters == MAMMAL_SOLUTION && (ZASSOU_SOLUTION - zassou_positions).empty?
+    asuka_on_kaidan?
   end
 
   def unsolvable?
     return false if solved? 
-    return true if items.size + inventory.size != 5
-    wand = inventory.find { |item| item.name == Item::WAND_HIKIYOSE }
-    if wand && wand.number == 0 && (characters - MAMMAL_SOLUTION).size > 1
-      return true
-    end
     return false
   end
 
@@ -137,7 +144,7 @@ class Board
   # る述語を定義する。
 
   def asuka_on_kaidan?
-    kaidan == asuka.pos
+    kaidan.pos == asuka.pos
   end
 
   def score
@@ -149,16 +156,9 @@ class Board
   end
 
   def _score
-    inventory_zassou = inventory.count { |item| item.name == '雑草' }
-    zassou_positions = Set.new(items.select { |item| item.name == '雑草' }.map(&:pos))
-    overlap = (zassou_positions & characters & MAMMAL_SOLUTION).size * -2
-    # wand = get_wand
-    # if wand
-    #   magic_factor = (20 - wand.number) * 0.01
-    # else
-    #   magic_factor = 0
-    # end
-    (characters - MAMMAL_SOLUTION).size + overlap # + magic_factor - rand(0.05)
+    dx = (kaidan.pos[0] - asuka.pos[0]).abs
+    dy = (kaidan.pos[1] - asuka.pos[1]).abs
+    [dx, dy].max
   end
 
   def get_wand
@@ -256,7 +256,7 @@ class Board
   # 階段が pos に存在する。
   #
   def kaidan_at?(pos)
-    kaidan == pos
+    kaidan.pos == pos
   end
 
 end

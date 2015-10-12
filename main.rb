@@ -73,69 +73,10 @@
 require 'set'
 require 'multiset'
 
+require_relative 'kaidan'
 require_relative 'item'
-
-# キャラクターを表わすクラスだ。名前と座標を指定してインスタンスを作成
-# する。
-#
-class Character < Struct.new(:name, :pos, :dir, :hp)
-  ATTRS = {'うしわか丸' => [10, true],
-           'アスカ' => [15, false]}
-
-  def initialize(name, pos, dir)
-    unless ATTRS.has_key?(name)
-      raise ArgumentError, "unknown character #{name}"
-    end
-
-    hp = ATTRS[name][0]
-
-    super(name, pos, dir, hp)
-  end
-
-  def to_s
-    "#{name}、HP#{hp}、位置#{Vec::vec_to_s(pos)}、#{Vec::dir_to_s(dir)}向き。"
-  end
-
-  def dead?
-    hp < 1.0
-  end
-
-  def symbol
-    name[0]
-  end
-
-end
-
-# ワナを表わすクラスだ。
-#
-class Trap < Struct.new(:name, :pos)
-
-  def initialize(name, pos)
-    raise "unknown trap type #{name}" unless name == '落とし穴'
-    super(name, pos)
-  end
-
-  def land(board, item)
-    # 落とし穴のロジックを実装する。item は board から削除されているは
-    # ず。
-    board.traps.delete(self)
-  end
-  
-  # 落とし穴のワナが踏まれた時の処理。
-  def step(board, character)
-    character.hp = 0
-    board.traps.delete(self)
-  end
-
-  def symbol
-    name[-1]
-  end
-
-  def to_s
-    "落とし穴"
-  end
-
-end
+require_relative 'character'
+require_relative 'trap'
 
 module Enumerable
   def find_by(prop, val)
@@ -260,7 +201,7 @@ EOD
   ushiwaka = Character.new('うしわか丸', *positions('う', map_from_s(chara_s)), [0,1])
   asuka = Character.new('アスカ', *positions('ア', map_from_s(chara_s)), [0,1])
   characters = Set[ushiwaka, asuka]
-  kaidan = positions('段', map_from_s(kaidan_s)).first
+  kaidan_pos = positions('段', map_from_s(kaidan_s)).first
   inventory = Multiset[
     Item.new(Item::WAND_BASHOGAE, 2),
     Item.new(Item::WAND_FUKITOBASHI, 1),
@@ -269,6 +210,7 @@ EOD
   items = Set.new
   ana = Trap.new('落とし穴', *positions('穴', map_from_s(kaidan_s)))
   traps = Set[ana]
+  kaidan = Kaidan.new(kaidan_pos)
 
   return Board.new(chikei, inventory, items, characters, kaidan, traps)
 end
@@ -337,33 +279,26 @@ class Program
     # 八方向への移動。今回ナナメに動ける場所は無いが、早すぎる最適化
     # 云々――。それぞれの方向について、アイテムを拾う場合と拾わない場
     # 合の二種類がある。
-    unless board.items.any? { |item| item.pos == board.asuka && item.name == Item::WAND_HIKIYOSE }
-      cmds += [[0, -1], [1, 0], [0, 1], [-1, 0]].flat_map { |d|
-        # [Command.new(:move, d, true)]
-        [Command.new(:move, d, true),
-         Command.new(:move, d, false)]
-      }
-    end
+    cmds += Command::DIRS.flat_map { |d|
+      [CommandMove.new(d, true),
+       CommandMove.new(d, false)]
+    }
 
     # アイテムに対して行なうコマンド。
     cmds += Command::DIRS.flat_map { |d|
       board.inventory.flat_map { |item|
-        [Command.new(:throw, d, item) ] + 
-          [Command.new(:use, d, item)]
+        [CommandThrow.new(d, item) ] + 
+          [CommandUse.new(d, item)]
       }
     }
 
-    cmds += board.inventory.flat_map { |item|
-      if item.name == Item::WAND_HIKIYOSE
-        []
-      else
-        [Command.new(:drop, item)]
-      end
+    cmds += board.inventory.to_a.uniq.map { |item|
+      CommandDrop.new(item)
     }
 
-    # cmds += [Command.new(:pick)]
+    cmds += [ CommandPick.new ]
 
-    return cmds.select { |cmd| cmd.legal?(board) }
+    return cmds
   end
 
   # 優先度付きキューを実装した PQueue クラスを使用して探索を実装する。
@@ -391,14 +326,15 @@ class Program
     
     until queue.empty?
       curr = queue.pop
-      # puts curr
+      puts curr
       p [:score, score.(curr)]
       STDERR.puts "#{queue.size} #{dist.size}"
       return [curr, prev] if curr.solved?
 
       commands(curr).each do |cmd|
-        # p cmd.to_s
-        node = cmd.execute(curr)
+        # puts cmd
+        node = curr.deep_copy
+        cmd.execute(node)
 
         # 自分自身に循環する辺は許容しない。
         next if node.eql? curr
@@ -488,9 +424,12 @@ end
 
 require_relative 'command'
 
-# ふきとばしの杖、ひきよせの杖の魔法弾の弾道を計算する。ベクトルの対の
-# リストを返す。１つ目のベクトルは魔法弾の位置、２つ目のベクトルは向き
-# を表わす。
+# ふきとばしの杖、ひきよせの杖の魔法弾の弾道を計算する。キャラクター、
+# アイテム、階段に当たる。同じマスに複数の種類のオブジェクトがあった場
+# 合も、この順番で選択される。
+#
+# ベクトルの対のリストを返す。１つ目のベクトルは魔法弾の位置、２つ目の
+# ベクトルは向きを表わす。
 #
 # (Board, [Fixnum,Fixnum]) → [ [[Fixnum,Fixnum],[Fixnum,Fixnum]] ]
 def mover_bullet_trajectory(board, dir)
@@ -506,7 +445,34 @@ def mover_bullet_trajectory(board, dir)
   res
 end
 
-# 場所替えの杖など、通常の杖の魔法弾の弾道を計算する。
+# アイテムのふきとばしは,キャラクターにしか当たらず、角抜け可能。
+def fukitobashi_trajectory(board, pos, dir)
+  throw_trajectory(board, pos, dir)
+end
+
+# 一直線に飛んでいって、キャラクターに当たるような弾道の計算。
+def throw_trajectory(board, pos, dir)
+  res = []
+  charas = (board.characters.map(&:pos) + [board.asuka.pos]).to_set
+  walls = (positions('■', board.map) + positions('◆', board.map)).to_set
+  xoff, yoff = dir
+
+  loop do
+    res << [pos, dir]
+    if res.size > 1 && charas.include?(pos)
+      break
+    elsif walls.include?(Vec::plus(pos, dir))
+      break
+    else
+      pos = Vec::plus(pos, dir)
+    end
+  end
+
+  return res
+end
+
+# 場所替えの杖など、通常の杖の魔法弾の弾道を計算する。キャラクターにし
+# か当たらない。
 #
 # (Board, [Fixnum,Fixnum]) → [ [[Fixnum,Fixnum],[Fixnum,Fixnum]] ]
 def normal_bullet_trajectory(board, dir)
@@ -520,8 +486,7 @@ def normal_bullet_trajectory(board, dir)
   res
 end
 
-def max_bullet_trajectory(board, dir)
-  pos        = board.asuka.pos
+def max_trajectory(board, pos, dir)
   # この際、壁と岩を同一視する。
   walls      = positions('■', board.map) + positions('◆', board.map)
   reflected  = false
@@ -594,6 +559,10 @@ def max_bullet_trajectory(board, dir)
 
     end
   end
+end
+
+def max_bullet_trajectory(board, dir)
+  max_trajectory(board, board.asuka.pos, dir)
 end
 
 if __FILE__ == $0

@@ -53,6 +53,69 @@ class Item < Struct.new(:name, :number, :pos)
     end
   end
 
+  # 投擲が当たるときに起こることは、行為者と対象（及び到着時の対象の向
+  # き）と行き先に依存する。
+  # 
+  # 例えば、行き先がモンスターで、投擲ダメージの結果、モンスターが死ん
+  # だら行為者に経験値が入る。対象が移動系の杖だった場合は、当たった向
+  # きが関係してくる。
+  # 
+  # 対象がワナだった場合は、対象の種類はあまり関係がない。地雷の上に落
+  # ちればなんだって消えてなくなる。
+
+  def hit_as_projectile(board, dest, dir, actor)
+    raise TypeError unless dest.is_a?(Character) || dest.is_a?(Trap)
+
+    case dest
+    when Character
+      dest.hit_by_projectile(board, self, dir, actor) # なんじゃこりゃ。  
+    when Trap
+      dest.land(board, self)
+    end
+    
+  end
+
+  # アイテムが dir 方向に吹き飛ばされる。Item, Character, Kaidan にこ
+  # のメソッドを持たせて、それぞれの挙動を実装しよう。
+  def fukitobasareru(board, dir, actor)
+    traj = fukitobashi_trajectory(board, pos, dir)
+
+    # 落下位置計算の為に、自分を削除しておく。
+    board.items.delete(self)
+
+    pos, dir = traj.last 
+
+    if chara = board.character_at(pos)
+      hit_as_projectile(board, chara, dir, actor)
+    elsif trap = board.trap_at(pos)
+      hit_as_projectile(board, trap, dir, actor)
+    else
+      # 何にも当たらず落ちた。
+      newpos = board.item_drop(pos)
+
+      if newpos == nil
+        puts "アイテムは消えた。"
+      else
+        self.pos = newpos
+        board.items.add(self)
+      end
+    end
+  end
+
+  def hit_effect(board, dest, dir, actor)
+    case name
+    when WAND_BASHOGAE
+      do_bashogae(board, actor, dest)
+    when WAND_HIKIYOSE
+      do_hikiyose(board, dest.pos, dir)
+    when WAND_FUKITOBASHI
+      dest.fukitobasareru(board, dir, actor)
+    else
+      raise 'unimplemented'
+    end
+    
+  end
+
   private
 
   # ひきよせの杖を振る。
@@ -87,6 +150,17 @@ class Item < Struct.new(:name, :number, :pos)
     end
 
     # 着弾の方向と逆向きにひきよせ効果を発動する。
+
+    do_hikiyose(board, target, bullet_dir)
+
+    # 引きよせの杖の回数を減らす。あるいは減らさない。
+    if true
+      # 足元の杖を使った場合は、杖は inventory ではなく、items にある。
+      wand.number -= 1
+    end
+  end
+
+  def do_hikiyose(board, target, bullet_dir)
     newpos = hikiyose_move(board, target, Vec::opposite_of(bullet_dir))
 
     # 動かなかった。
@@ -105,26 +179,16 @@ class Item < Struct.new(:name, :number, :pos)
       chara.pos = newpos
       board.characters << chara
     elsif board.item_at(target) != nil
-      # 引きよせるのはアイテム。
-
-      # p "アイテム引きよせ"
-
-      # 実際に落ちる位置を調整する。
+      # 引きよせるのはアイテム。実際に落ちる位置を調整する。
       newpos = board.item_drop(newpos)
 
       board.item_at(target).pos = newpos
     else
-      unless board.kaidan == target
+      unless board.kaidan.pos == target
         raise 'uncovered case'
       end
 
-      board.kaidan = newpos
-    end
-
-    # 引きよせの杖の回数を減らす。あるいは減らさない。
-    if true
-      # 足元の杖を使った場合は、杖は inventory ではなく、items にある。
-      wand.number -= 1
+      board.kaidan.pos = newpos
     end
   end
 
@@ -155,12 +219,15 @@ class Item < Struct.new(:name, :number, :pos)
       return
     end
 
+    do_bashogae(board, actor, target)
+
+  end
+
+  def do_bashogae(board, actor, target)
     # 場所替えた時の、アスカと敵の落下位置ってどういう順番で決まるんだ
     # ろう？　問題になる場合はないのかな。敵が先に落下してアスカの落下
     # 位置が変わるとか。お互いに相手が存在できない地形に立っていないと
     # だめだから、ないか。
-    # 
-    # >>920 ローグライクゲームの魔法弾の再現だよ〜
     #
     board.characters -= [actor]
     board.characters -= [target]
@@ -175,26 +242,24 @@ class Item < Struct.new(:name, :number, :pos)
     if trap
       trap.step(board, actor)
     end
-
   end
 
   # ふきとばしの杖を振る処理だ。
-  def use_fukitobashi(board, dir)
-    raise '実装してないよ'
-
+  def use_fukitobashi(board, actor)
     # 杖の回数が無ければ振れない。あれば回数は１減る。（この辺はどの杖
     # でも同じだから統一したい）
     return if number == 0
 
     self.number -= 1
 
-    target_pos, bullet_dir = mover_target_direction(board, dir)
+    target_pos, bullet_dir = mover_target_direction(board, actor.dir)
     unless target_pos
       return
     end
     
-    newpos = fukitobashi_move(board, target_pos, Vec::opposite_of(bullet_dir))
-
+    # 何かをふきとばした。何かにふきとんでもらう。
+    obj = board.top_object_at(target_pos)
+    obj.fukitobasareru(board, bullet_dir, actor)
   end
 
   # (Board, [Fixnum,Fixnum]) → [?[Fixnum,Fixnum], ?[Fixnum,Fixnum]]

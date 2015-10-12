@@ -74,11 +74,14 @@ class CommandThrow < Command
   def execute(board)
     # アスカが遠投の腕輪を装備しているかどうかで、投擲の挙動を変更した
     # い場合は、ここに追加するべきだ。
-
+    board.asuka.dir = @dir
     return execute_normal_throw(board)
   end
 
   def execute_normal_throw(board)
+    # 着地処理や敵に当たって消える前にアイテムを削除しておく。
+    board.destroy_item!(item)
+
     # 遠投状態ではない時に物を投げる処理だ。壁の手前まで来たら止まって、
     # 落ちる処理が行なわれる（止まったマスのワナの発動、実際に移動する
     # マスの選択、あるいは消滅）。
@@ -114,7 +117,8 @@ class CommandThrow < Command
       # まがりの腕輪使ったら軌道だけじゃなくて方向も計算しないといけな
       # いな。
       if chara
-        item.hit(chara, dir, board.asuka)
+        chara.hit_by_projectile(board, item, dir, board.asuka)
+        # item.hit_effect(board, chara, dir, board.asuka)
         return
       end
     end
@@ -126,8 +130,6 @@ class CommandThrow < Command
     # 足元である場合もあることに注意。
     drop_candidate = max_traj.last
     if item.pos != drop_candidate
-      # 着地処理の前にアイテムを削除しておく。
-      board.destroy_item!(item)
       item_land(board, item, drop_candidate)
       return
     end
@@ -147,7 +149,8 @@ class CommandThrow < Command
       # アイテムの着地
       actual_pos = board.item_drop(drop_candidate)
       if actual_pos
-        board.item_at(pos).pos = actual_pos
+        # board.item_at(pos).pos = actual_pos
+        item.pos = actual_pos # not sure
       end
     end
   end
@@ -189,8 +192,9 @@ class CommandDrop
 
   def execute(board)
     if board.can_drop?(board.asuka.pos)
-      # 怖い。
-      board.inventory.delete(@item)
+      # どうして以下の delete が動かないのか理解できない。
+      # board.inventory.delete(@item)
+      board.inventory -= {@item => 1}
       @item.pos = board.asuka.pos
       board.items << @item
     end
@@ -230,7 +234,8 @@ class CommandMove < Command
   end
 
   def to_s
-    "#{Vec::dir_to_s(dir)}へ移動する"
+    s_pick = pick ? "拾う" : "拾わない"
+    "#{Vec::dir_to_s(dir)}へ移動する(#{s_pick})"
   end
 
   private
