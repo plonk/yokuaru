@@ -45,20 +45,3 @@ step(board, :throw, [1, 0], wand)
 wand = board.inventory.find_by(:name, Item::WAND_HIKIYOSE)
 step(board, :throw, [-1, 0], wand)
 step(board, :move, [0, -1], true)
-
-# h "右上にふきとばしの杖を投げてみる"
-# wand = board.inventory.find_by(:name, "ふきとばしの杖")
-# c = Command.create(:throw, [1, -1], wand)
-# board = c.execute(board)
-# puts board
-
-# h "上に動いてみる"
-# c = Command.create(:move, [0, -1])
-# board = c.execute(board)
-# puts board
-
-# h "右上に場所替えの杖を投げてみる"
-# wand = board.inventory.find_by(:name, "場所替えの杖")
-# c = Command.create(:throw, [1, -1], wand)
-# board = c.execute(board)
-# puts board

@@ -348,10 +348,11 @@ class Program
           next 
         end
 
+        node.set_score
+        node.set_hash
+
         if dist[node] == Float::INFINITY
           # puts node
-          node.set_score
-          # node.set_hash
           # p [:score, score(node)]
           dist[node] = dist[curr] + 1
           # p node.hash

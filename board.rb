@@ -82,7 +82,11 @@ class Board
   # Hash に入れたいので hash メソッドと eql? メソッドを定義する。
 
   def hash
-    _hash
+    @hash || _hash
+  end
+
+  def set_hash
+    @hash = _hash
   end
 
   def _hash
@@ -165,6 +169,7 @@ class Board
   end
 
   def unsolvable?
+    return true if asuka.hp < 1
     return false if solved? 
     return false
   end
@@ -188,7 +193,15 @@ class Board
     # 1
     dx = (kaidan.pos[0] - asuka.pos[0]).abs
     dy = (kaidan.pos[1] - asuka.pos[1]).abs
-    [dx, dy].max
+    s = [dx, dy].max
+
+    if characters.to_a[0].dir == [-1,-1]
+      s -= 5
+    end
+    if traps.empty?
+      s -= 5
+    end
+    s
   end
 
   def get_wand

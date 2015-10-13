@@ -94,7 +94,7 @@ class Item < Struct.new(:name, :number, :pos)
       newpos = board.item_drop(pos)
 
       if newpos == nil
-        puts "アイテムは消えた。"
+        # puts "アイテムは消えた。"
       else
         self.pos = newpos
         board.items.add(self)
@@ -126,7 +126,7 @@ class Item < Struct.new(:name, :number, :pos)
 
     # 杖の回数が 0 の場合は何も起きない。
     if wand.number == 0
-      puts "杖の回数が無い"
+      # puts "杖の回数が無い"
       return
     end
 
@@ -145,7 +145,7 @@ class Item < Struct.new(:name, :number, :pos)
     target, bullet_dir = mover_target_direction(board, dir)
     unless target
       # 何にも当たらなかったので、局面は変化しない。
-      puts "何にも当たらなかった"
+      # puts "何にも当たらなかった"
       return
     end
 
@@ -178,11 +178,17 @@ class Item < Struct.new(:name, :number, :pos)
       newpos = board.character_drop(newpos, chara.dir)
       chara.pos = newpos
       board.characters << chara
-    elsif board.item_at(target) != nil
+    elsif item = board.item_at(target)
+      board.items.delete(item)
       # 引きよせるのはアイテム。実際に落ちる位置を調整する。
-      newpos = board.item_drop(newpos)
+      if trap = board.trap_at(newpos)
+        trap.land(board, item)
+      else
+        newpos = board.item_drop(newpos)
 
-      board.item_at(target).pos = newpos
+        item.pos = newpos
+        board.items << item
+      end
     else
       unless board.kaidan.pos == target
         raise 'uncovered case'
@@ -240,9 +246,10 @@ class Item < Struct.new(:name, :number, :pos)
     board.characters << actor
     board.characters << target
 
-    trap = board.trap_at(actor.pos)
+    asuka = [actor, target].find { |chara| chara.name == 'アスカ' }
+    trap = board.trap_at(asuka.pos)
     if trap
-      trap.step(board, actor)
+      trap.step(board, asuka)
     end
   end
 
@@ -287,7 +294,7 @@ class Item < Struct.new(:name, :number, :pos)
   def hikiyose_move(board, mammal, dir)
     # ひきよせ効果によるキャラクターの移動。dir は魔法弾の方向。
 
-    obstacles = Set.new(board.characters.to_a + positions('■', board.map) + positions('◆', board.map) + [board.asuka.pos])
+    obstacles = Set.new(board.characters.map(&:pos).to_a + positions('■', board.map) + positions('◆', board.map) + [board.asuka.pos])
     x, y = mammal
     xoff, yoff = dir
 

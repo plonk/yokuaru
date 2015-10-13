@@ -217,8 +217,8 @@ class CommandMove < Command
   def execute(board)
     xoff, yoff = dir
 
-    # アスカの移動は、二種類ある行動のうちでは簡単な方だ。アスカは盗賊
-    # 番の居る座標や、壁、岩のある座標へは移動できない。
+    # アスカの移動は、二種類ある行動のうちでは簡単な方だ。アスカは他の
+    # キャラクターの居る座標や、壁、岩のある座標へは移動できない。
 
     if asuka_can_move_into?(board, Vec::plus(board.asuka.pos, dir))
       board.asuka.pos = Vec::plus(board.asuka.pos, dir)
@@ -260,7 +260,7 @@ class CommandMove < Command
 
   def can_move_into?(board, pos)
     x, y = pos
-    return !board.characters.include?(pos) &&
+    return !board.characters.map(&:pos).include?(pos) &&
            !['■', '◆', '水'].include?(board.map[y][x])
 
   end
