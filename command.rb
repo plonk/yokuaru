@@ -79,8 +79,10 @@ class CommandThrow < Command
   end
 
   def execute_normal_throw(board)
+    @item = board.inventory[@item] || board.items[@item]
+
     # 着地処理や敵に当たって消える前にアイテムを削除しておく。
-    board.destroy_item!(item)
+    board.destroy_item!(@item)
 
     # 遠投状態ではない時に物を投げる処理だ。壁の手前まで来たら止まって、
     # 落ちる処理が行なわれる（止まったマスのワナの発動、実際に移動する
@@ -149,8 +151,7 @@ class CommandThrow < Command
       # アイテムの着地
       actual_pos = board.item_drop(drop_candidate)
       if actual_pos
-        # board.item_at(pos).pos = actual_pos
-        item.pos = actual_pos # not sure
+        item.pos = actual_pos
       end
     end
   end
@@ -192,11 +193,10 @@ class CommandDrop
 
   def execute(board)
     if board.can_drop?(board.asuka.pos)
-      # どうして以下の delete が動かないのか理解できない。
-      # board.inventory.delete(@item)
-      board.inventory -= {@item => 1}
-      @item.pos = board.asuka.pos
-      board.items << @item
+      item_ = board.inventory[@item]
+      board.inventory.delete(item_)
+      item_.pos = board.asuka.pos
+      board.items << item_
     end
   end
 

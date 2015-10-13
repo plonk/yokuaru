@@ -121,7 +121,7 @@ class Item < Struct.new(:name, :number, :pos)
   # ひきよせの杖を振る。
   #
   def use_hikiyose(board, actor)
-    wand = self
+    wand = board.inventory[self] || board.items[self]
     dir = actor.dir
 
     # 杖の回数が 0 の場合は何も起きない。
@@ -196,8 +196,10 @@ class Item < Struct.new(:name, :number, :pos)
   def use_bashogae(board, actor)
     return if number == 0
 
+    wand = board.inventory[self] || board.items[self]
+
     # 杖の回数が１減る。
-    self.number -= 1
+    wand.number -= 1
 
     # 場所替えの弾道を計算して、キャラクターに当たるかどうか判定する。
     # 当たらなかった場合は何も起こらないが、当たった場合はそのキャラク
@@ -250,7 +252,8 @@ class Item < Struct.new(:name, :number, :pos)
     # でも同じだから統一したい）
     return if number == 0
 
-    self.number -= 1
+    wand = board.inventory[self] || board.items[self]
+    wand.number -= 1
 
     target_pos, bullet_dir = mover_target_direction(board, actor.dir)
     unless target_pos
@@ -284,7 +287,7 @@ class Item < Struct.new(:name, :number, :pos)
   def hikiyose_move(board, mammal, dir)
     # ひきよせ効果によるキャラクターの移動。dir は魔法弾の方向。
 
-    obstacles = board.characters + positions('■', board.map) + positions('◆', board.map) + [board.asuka.pos]
+    obstacles = Set.new(board.characters.to_a + positions('■', board.map) + positions('◆', board.map) + [board.asuka.pos])
     x, y = mammal
     xoff, yoff = dir
 

@@ -46,4 +46,8 @@ class Character < Struct.new(:name, :pos, :dir, :hp)
     # 実装しないぞ。
   end
 
+  def <=>(other)
+    [name, pos, dir, hp] <=> other.instance_eval { [name, pos, dir, hp] }
+  end
+
 end

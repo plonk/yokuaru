@@ -5,7 +5,7 @@ class Board
   # アイテムの一覧、及び階段の位置を持っている。
 
   COMPONENT_NAMES = [:inventory, :items, :characters, :kaidan, :traps]
-  COMPONENT_TYPES = [Multiset, Set, Set, Kaidan, Set]
+  COMPONENT_TYPES = [Bag, Bag, Bag, Kaidan, Bag]
 
   def initialize(map, inventory, items, characters, kaidan, traps)
     # map は [[String]]、inventory は Multiset<Item>、items は
@@ -23,7 +23,11 @@ class Board
 
   # → Board
   def deep_copy
-    Marshal.load(Marshal.dump(self))
+    copy = Marshal.load(Marshal.dump(self))
+    # h = copy.characters.instance_variable_get(:@hash)
+    # h.rehash
+    # characters.instance_variable_get(:@hash).rehash
+    copy
   end
 
   attr_reader :map
@@ -89,7 +93,32 @@ class Board
 
   def eql?(other)
     return false if self.hash != other.hash
-    COMPONENT_NAMES.all? { |prop| self.__send__(prop).eql?(other.__send__(prop)) }
+    COMPONENT_NAMES.all? { |prop|
+      # p prop
+      if prop == :characters
+        a = self.__send__(prop)
+        b = other.__send__(prop)
+        # ha= a.instance_variable_get(:@hash)
+        # hb= b.instance_variable_get(:@hash)
+        #   p ha.class.object_id
+        #   p hb.class.object_id
+        #   #ha.rehash
+        #   #hb.rehash
+        #   p ha == hb
+        #   p ha.eql? hb
+        #   p [ha.frozen?, hb.frozen?]
+        #   p [ha.tainted?, hb.tainted?]
+        #   puts '--------'
+        #   p ha.keys[0].eql?(hb.keys[0])
+        # p [ha.keys[0].class.hash, hb.keys[0].class.hash]
+        #   p ha.values == hb.values
+        #   acopy = Marshal.load Marshal.dump(a)
+        #   p acopy == a
+        a.to_a.sort == b.to_a.sort
+      else
+        self.__send__(prop).eql?(other.__send__(prop))
+      end
+    }
   end
 
   alias == eql?
@@ -156,6 +185,7 @@ class Board
   end
 
   def _score
+    # 1
     dx = (kaidan.pos[0] - asuka.pos[0]).abs
     dy = (kaidan.pos[1] - asuka.pos[1]).abs
     [dx, dy].max

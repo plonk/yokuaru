@@ -71,7 +71,7 @@
 # 算する機能は弱い。
 
 require 'set'
-require 'multiset'
+require_relative 'bag'
 
 require_relative 'kaidan'
 require_relative 'item'
@@ -200,16 +200,16 @@ EOD
   chikei = map_from_s(chikei_s)
   ushiwaka = Character.new('うしわか丸', *positions('う', map_from_s(chara_s)), [0,1])
   asuka = Character.new('アスカ', *positions('ア', map_from_s(chara_s)), [0,1])
-  characters = Set[ushiwaka, asuka]
+  characters = Bag[ushiwaka, asuka]
   kaidan_pos = positions('段', map_from_s(kaidan_s)).first
-  inventory = Multiset[
+  inventory = Bag[
     Item.new(Item::WAND_BASHOGAE, 2),
     Item.new(Item::WAND_FUKITOBASHI, 1),
     Item.new(Item::WAND_HIKIYOSE, 1),
   ]
-  items = Set.new
+  items = Bag.new
   ana = Trap.new('落とし穴', *positions('穴', map_from_s(kaidan_s)))
-  traps = Set[ana]
+  traps = Bag[ana]
   kaidan = Kaidan.new(kaidan_pos)
 
   return Board.new(chikei, inventory, items, characters, kaidan, traps)
@@ -337,12 +337,19 @@ class Program
         cmd.execute(node)
 
         # 自分自身に循環する辺は許容しない。
-        next if node.eql? curr
+        if node.eql? curr
+          # puts 'no change'
+          next 
+        end
 
         # 解に辿り着けない状態の場合、探索対象に入れない。
-        next if node.unsolvable?
+        if node.unsolvable?
+          # puts 'unsolvable'
+          next 
+        end
 
         if dist[node] == Float::INFINITY
+          # puts node
           node.set_score
           # node.set_hash
           # p [:score, score(node)]
@@ -351,7 +358,12 @@ class Program
           queue << node
           
           prev[node] = [curr, cmd]
+          print '*'
+        else
+          # puts node
+          print '.'
         end
+        STDOUT.flush
       end
     end
 
