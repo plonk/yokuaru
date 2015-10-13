@@ -128,6 +128,9 @@ class Item < Struct.new(:name, :number, :pos)
     if wand.number == 0
       # puts "杖の回数が無い"
       return
+    else
+      # 足元の杖を使った場合は、杖は inventory ではなく、items にある。
+      wand.number -= 1
     end
 
     # まず魔法弾の軌道を計算し、何かのエンティティに着弾したかどうかを
@@ -152,12 +155,6 @@ class Item < Struct.new(:name, :number, :pos)
     # 着弾の方向と逆向きにひきよせ効果を発動する。
 
     do_hikiyose(board, target, bullet_dir)
-
-    # 引きよせの杖の回数を減らす。あるいは減らさない。
-    if true
-      # 足元の杖を使った場合は、杖は inventory ではなく、items にある。
-      wand.number -= 1
-    end
   end
 
   def do_hikiyose(board, target, bullet_dir)

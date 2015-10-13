@@ -212,7 +212,9 @@ EOD
   traps = Bag[ana]
   kaidan = Kaidan.new(kaidan_pos)
 
-  return Board.new(chikei, inventory, items, characters, kaidan, traps)
+  Board.map = chikei
+
+  return Board.new(inventory, items, characters, kaidan, traps)
 end
 
 # ここで使われた map_from_s と positions のユーティリティ関数は以下のよ
@@ -326,7 +328,7 @@ class Program
     
     until queue.empty?
       curr = queue.pop
-      puts curr
+      # puts curr
       p [:score, score.(curr)]
       STDERR.puts "#{queue.size} #{dist.size}"
       return [curr, prev] if curr.solved?
@@ -335,6 +337,10 @@ class Program
         # puts cmd
         node = curr.deep_copy
         cmd.execute(node)
+        node.asuka.dir = [0,1]
+
+        node.set_score
+        node.set_hash
 
         # 自分自身に循環する辺は許容しない。
         if node.eql? curr
@@ -347,9 +353,6 @@ class Program
           # puts 'unsolvable'
           next 
         end
-
-        node.set_score
-        node.set_hash
 
         if dist[node] == Float::INFINITY
           # puts node

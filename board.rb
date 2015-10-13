@@ -1,5 +1,9 @@
 
 class Board
+  class << Board
+    attr_accessor :map
+  end
+
   # ゲームの状態を表わすクラスだ。コンポーネントとして、地形情報と全て
   # のモンスターの位置とアスカの状態（位置、向き）、持ち物一覧、床落ち
   # アイテムの一覧、及び階段の位置を持っている。
@@ -7,18 +11,20 @@ class Board
   COMPONENT_NAMES = [:inventory, :items, :characters, :kaidan, :traps]
   COMPONENT_TYPES = [Bag, Bag, Bag, Kaidan, Bag]
 
-  def initialize(map, inventory, items, characters, kaidan, traps)
+  def initialize(inventory, items, characters, kaidan, traps)
     # map は [[String]]、inventory は Multiset<Item>、items は
     # Set<Item>、characters は Set {[Fixnum,Fixnum]}、kaidan は
     # Kaidan。
-
-    @map = map
 
     self.inventory  = inventory
     self.items      = items
     self.characters = characters
     self.kaidan     = kaidan
     self.traps      = traps
+  end
+
+  def map
+    Board.map
   end
 
   # → Board
@@ -29,8 +35,6 @@ class Board
     # characters.instance_variable_get(:@hash).rehash
     copy
   end
-
-  attr_reader :map
 
   # これらの情報が外部から見えるようにしよう。
 
@@ -190,18 +194,9 @@ class Board
   end
 
   def _score
-    # 1
     dx = (kaidan.pos[0] - asuka.pos[0]).abs
     dy = (kaidan.pos[1] - asuka.pos[1]).abs
-    s = [dx, dy].max
-
-    if characters.to_a[0].dir == [-1,-1]
-      s -= 5
-    end
-    if traps.empty?
-      s -= 5
-    end
-    s
+    return [dx, dy].max
   end
 
   def get_wand
