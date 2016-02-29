@@ -102,16 +102,22 @@ class Item < Struct.new(:name, :number, :pos)
     end
   end
 
-  def hit_effect(board, dest, dir, actor)
+  # 
+  def hit_effect(board, patient, dir, actor)
     case name
     when WAND_BASHOGAE
-      do_bashogae(board, actor, dest)
+      do_bashogae(board, actor, patient)
     when WAND_HIKIYOSE
-      do_hikiyose(board, dest.pos, dir)
+      do_hikiyose(board, patient.pos, dir)
     when WAND_FUKITOBASHI
-      dest.fukitobasareru(board, dir, actor)
+      patient.fukitobasareru(board, dir, actor)
+    # when :"高とび草"
+
     else
-      raise 'unimplemented'
+      patient.hp -= 1
+      puts "#{patient.name}に#{self.name}が当たった"
+      patient.mind_state = :awake
+      p patient
     end
     
   end

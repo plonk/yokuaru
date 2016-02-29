@@ -207,14 +207,14 @@ require_relative 'board'
 # 乗っているという終了状態へ遷移させ、その道筋を表示する。
 
 class Program
-  # () → Board
-  def build_problem
+  # (String, Fixnum) → Board
+  # フロア番号 floor_num は、1 から数える。
+  def build_problem(path, floor_num)
     # 初期状態を Board オブジェクトとして返すメソッド。
 
-    path = './第7回ひざくさフェイ問+難.fei2'
     floor = nil
     File.open(path, 'r:ASCII-8BIT') do |f|
-      floor = Fei::read_fei2_book(f).floors[49]
+      floor = Fei::read_fei2_book(f).floors[floor_num - 1]
     end
 
     board = BoardBuilder.new(floor).product
@@ -310,9 +310,18 @@ class Program
     raise 'solution not found'
   end
 
-  # () -> Fixnum
-  def run
-    init = build_problem
+  def print_usage
+    STDERR.puts "Usage: #{$0} FILENAME FLOOR_NUMBER"
+  end
+
+  # [String] -> Fixnum
+  def run(argv)
+    if !(argv.size == 2 && argv[1] =~ /\A\d+\z/)
+      print_usage
+      return 1
+    end
+
+    init = build_problem(argv[0], argv[1].to_i)
 
     goal, prevs = search(init)
 
@@ -501,5 +510,5 @@ def max_bullet_trajectory(board, dir)
 end
 
 if __FILE__ == $0
-  exit Program.new.run
+  exit Program.new.run(ARGV)
 end

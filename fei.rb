@@ -139,12 +139,32 @@ module Fei
   end
 
   class Character < Struct.new(:y, :x, :dir, :kind, :level, :status)
+    def name
+      if CHARACTER_KIND.has_key?(kind)
+        if level - 1 < CHARACTER_KIND[kind].size
+          return CHARACTER_KIND[kind][level - 1]
+        else
+          raise "unregistered level (#{level}) for character kind (#{kind})"
+        end
+      else
+        raise "unregistered character kind (#{kind})"
+      end
+    end
   end
 
   class Item < Struct.new(:y, :x, :kind, :num, :flags)
+    def name
+      ITEM_KIND[kind] or raise "unregistered item (#{kind})"
+    end
   end
 
   class Trap < Struct.new(:y, :x, :kind, :flags)
+    def name
+      raise "unregistered trap #{kind}" unless TRAP_KIND.has_key?(kind)
+
+      return TRAP_KIND[kind]
+    end
+
     def visible?
       flags & 0x1 == 1
     end
@@ -213,6 +233,7 @@ module Fei
     301 => '四股の秘技書',
     358 => '一時しのぎの杖',
     129 => '木の矢',
+    274 => '交錯の秘技書',
   }
 
   CHARACTER_KIND = {
@@ -238,5 +259,6 @@ module Fei
     101 => ['わらうポリゴン', 'まわるポリゴン', 'おどるポリゴン', 'うたうポリゴン'],
     115 => ['オトト兵', 'オトト軍曹', 'オトト大将', 'オトト元帥'],
     103 => ['チンタラ', 'ちゅうチンタラ', 'おおチンタラ'],
+    81 => ['デブータ', 'デブーチョ', 'デブートン']
   }
 end

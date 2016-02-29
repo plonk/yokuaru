@@ -20,7 +20,7 @@ class BoardBuilder
     2 => '■',
     3 => '◆',
     4 => '水',
-    5 => '　'
+    5 => '濡'
   }
   # よくある杖と敵ソルバーが対応しているシンボルに変換する。
   def convert_chikei(fei_chikei)
@@ -39,10 +39,11 @@ class BoardBuilder
     [-1, -1]
   ]
   def convert_character(fei_character)
-    name = Fei::CHARACTER_KIND[fei_character.kind][fei_character.level - 1].to_sym
+    name = fei_character.name.to_sym
     pos = [fei_character.x, fei_character.y] # x, y の順であってる？
     dir_vec = DIR_TO_VEC[fei_character.dir]
-    return Character.new(name, pos, dir_vec)
+    mind_state = [:awake, :shallow_sleep, :deep_sleep, :paralyzed][fei_character.status]
+    return Character.new(name, pos, dir_vec, mind_state)
   end
 
   def convert_characters(fei_characters)
@@ -52,7 +53,7 @@ class BoardBuilder
   def convert_items(fei_items)
     return fei_items.map { |item|
       pos = [item.x, item.y]
-      name = Fei::ITEM_KIND[item.kind].to_sym
+      name = item.name.to_sym
       Item.new(name, item.num, pos)
     }
   end
@@ -60,7 +61,7 @@ class BoardBuilder
   def convert_traps(fei_traps)
     return fei_traps.map { |trap|
       pos = [trap.x, trap.y]
-      name = Fei::TRAP_KIND[trap.kind].to_sym
+      name = trap.name.to_sym
       Trap.new(name, pos)
     }
   end
@@ -71,7 +72,7 @@ class BoardBuilder
 
     mob = convert_characters floor.characters
     # アスカの向きはフェイ問ファイルにあるはずだけど、上向き[0, -1]にしておく。
-    asuka = Character.new(Character::ASUKA, [floor.asuka_x, floor.asuka_y], [0, -1])
+    asuka = Character.new(Character::ASUKA, [floor.asuka_x, floor.asuka_y], [0, -1], :awake)
     characters = Bag[*mob, asuka]
 
     inventory = Bag.new
