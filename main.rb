@@ -267,22 +267,17 @@ class Program
     queue = PQueue.new { |a, b| a.score < b.score }
     queue << init
     prev[init] = nil
-    # visited = Hash.new { false }
-    # visited[init] = true
     
     until queue.empty?
       curr = queue.pop
-      # puts curr
       puts
       p [:score, curr.score]
       STDERR.puts "#{queue.size} #{prev.size}"
       if curr.solved?
-        # p visited.keys.map { |b| b.hash % 65536 }.frequencies.values.frequencies
         return [curr, prev]
       end
 
       commands(curr).each do |cmd|
-        # puts cmd
         node = curr.deep_copy
         cmd.execute(node)
         node.asuka.dir = [0,1]
@@ -292,30 +287,22 @@ class Program
 
         # 自分自身に循環する辺は許容しない。
         if node.eql? curr
-          # puts 'no change'
           next 
         end
 
         # 解に辿り着けない状態の場合、探索対象に入れない。
         if node.unsolvable?
-          # puts 'unsolvable'
           next 
         end
 
         if !prev.has_key?(node)
-          # puts node
-          # p [:score, score(node)]
-          # visited[node] = true
-          # p node.hash
           queue << node
           
           prev[node] = [curr, cmd]
           print '*'
         else
-          # puts node
           print '.'
         end
-        # STDOUT.flush
       end
     end
 
@@ -323,29 +310,17 @@ class Program
     raise 'solution not found'
   end
 
-  # def score(board)
-  #   x, y = board.asuka
-  #   xx, yy = board.kaidan
-  #   return [(x - xx).abs, (y - yy).abs].max
-  # end
-
+  # () -> Fixnum
   def run
     init = build_problem
-
-    # w = init.inventory.find { |item| item.name == Item::WAND_HIKIYOSE }
-    # c = Command.new(:throw, [0, -1], w)
-    # b = c.execute init
-    # puts b
-    # p b.solved?
-    # p b.unsolvable?
-    # p b.score
-    # exit
 
     goal, prevs = search(init)
 
     path = reconstruct_path(prevs, init, goal)
 
     print_path(path)
+
+    return 0
   end
 
   # 終端を含む take_while ってどうやるんだろう？
@@ -380,10 +355,6 @@ class Program
     puts "終了"
   end
 
-end
-
-def main
-  return Program.new.run
 end
 
 require_relative 'command'
@@ -530,5 +501,5 @@ def max_bullet_trajectory(board, dir)
 end
 
 if __FILE__ == $0
-  main
+  exit Program.new.run
 end
