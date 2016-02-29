@@ -171,84 +171,8 @@ module Vec
 
 end
 
-# Board クラスは次のような使いかたをする。
-
-def build_demo_problem
-  chikei_s = <<EOD
-■■■■■
-■■　■■
-■■　■■
-■　水　■
-■　水■■
-■　　　■
-■■■■■
-EOD
-  chara_s = <<EOD
-■■■■■
-■■　■■
-■■　■■
-■う水　■
-■　水■■
-■　ア　■
-■■■■■
-EOD
-  kaidan_s = <<EOD
-■■■■■
-■■段■■
-■■　■■
-■　水穴■
-■　水■■
-■　　　■
-■■■■■
-EOD
-  chikei = map_from_s(chikei_s)
-  ushiwaka = Character.new(Character::USHIWAKAMARU, *positions('う', map_from_s(chara_s)), [0,1])
-  asuka = Character.new(Character::ASUKA, *positions('ア', map_from_s(chara_s)), [0,1])
-  characters = Bag[ushiwaka, asuka]
-  kaidan_pos = positions('段', map_from_s(kaidan_s)).first
-  inventory = Bag[
-    Item.new(Item::WAND_BASHOGAE, 2),
-    Item.new(Item::WAND_FUKITOBASHI, 1),
-    Item.new(Item::WAND_HIKIYOSE, 1),
-  ]
-  items = Bag.new
-  ana = Trap.new(Trap::OTOSHIANA, *positions('穴', map_from_s(kaidan_s)))
-  traps = Bag[ana]
-  kaidan = Kaidan.new(kaidan_pos)
-
-  Board.map = chikei
-
-  return Board.new(inventory, items, characters, kaidan, traps)
-end
-
 require_relative 'fei'
 require_relative 'board_builder'
-
-# () → Board
-def build_demo_problem
-  path = './第7回ひざくさフェイ問+難.fei2'
-  floor = nil
-  File.open(path, 'r:ASCII-8BIT') do |f|
-    floor = Fei::read_fei2_book(f).floors[49]
-  end
-
-  board = BoardBuilder.new(floor).product
-  return board
-end
-
-# ここで使われた map_from_s と positions のユーティリティ関数は以下のよ
-# うに定義される。
-
-def map_from_s(str)
-  # 複数行からなるテキストを受けとり、個々の要素として文字（String）を
-  # 持つ２次元配列に変換する。
-  
-  lines = str.each_line.map(&:chomp)
-  unless lines.map(&:size).all? { |len| len == lines[0].size }
-    raise 'inconsistent line lengths'
-  end
-  return lines.map { |line| line.each_char.to_a }
-end
 
 def positions(char, map)
   # positions はエンティティを表わす文字と、２次元配列である map を受
@@ -283,13 +207,18 @@ require_relative 'board'
 # 乗っているという終了状態へ遷移させ、その道筋を表示する。
 
 class Program
+  # () → Board
   def build_problem
     # 初期状態を Board オブジェクトとして返すメソッド。
-    #
-    # 今回は問題は変化しない。外部のファイルなどから問題を受け取りたい場合は、
-    # この関数を変更すれば良いだろう。
 
-    return build_demo_problem
+    path = './第7回ひざくさフェイ問+難.fei2'
+    floor = nil
+    File.open(path, 'r:ASCII-8BIT') do |f|
+      floor = Fei::read_fei2_book(f).floors[49]
+    end
+
+    board = BoardBuilder.new(floor).product
+    return board
   end
 
   def commands(board)
