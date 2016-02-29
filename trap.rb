@@ -1,9 +1,10 @@
 # ワナを表わすクラスだ。
 #
 class Trap < Struct.new(:name, :pos)
+  OTOSHIANA = :'落し穴'
 
   def initialize(name, pos)
-    raise "unknown trap type #{name}" unless name == '落とし穴'
+    raise "unknown trap type #{name}" unless name == OTOSHIANA
     super(name, pos)
   end
 
@@ -24,7 +25,7 @@ class Trap < Struct.new(:name, :pos)
   end
 
   def to_s
-    "落とし穴"
+    name.to_s
   end
 
 end

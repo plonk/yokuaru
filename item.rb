@@ -11,10 +11,10 @@
 # を追加すると良いだろう。
 #
 class Item < Struct.new(:name, :number, :pos)
-  WAND_BASHOGAE    = "場所替えの杖"
-  WAND_FUKITOBASHI = "ふきとばしの杖"
-  WAND_HIKIYOSE    = "引きよせの杖"
-  HERB_ZASSOU      = "雑草"
+  WAND_BASHOGAE    = :"場所替えの杖"
+  WAND_FUKITOBASHI = :"ふきとばしの杖"
+  WAND_HIKIYOSE    = :"引きよせの杖"
+  HERB_ZASSOU      = :"雑草"
 
   # メッセージ表示に適した形に文字列化する。
   def to_s
@@ -243,7 +243,7 @@ class Item < Struct.new(:name, :number, :pos)
     board.characters << actor
     board.characters << target
 
-    asuka = [actor, target].find { |chara| chara.name == 'アスカ' }
+    asuka = [actor, target].find { |chara| chara.name == Character::ASUKA }
     trap = board.trap_at(asuka.pos)
     if trap
       trap.step(board, asuka)

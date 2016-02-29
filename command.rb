@@ -234,8 +234,8 @@ class CommandMove < Command
   end
 
   def to_s
-    s_pick = pick ? "拾う" : "拾わない"
-    "#{Vec::dir_to_s(dir)}へ移動する(#{s_pick})"
+    s_pick = pick ? "" : "(拾わない)"
+    "#{Vec::dir_to_s(dir)}へ移動する#{s_pick}"
   end
 
   private

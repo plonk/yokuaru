@@ -82,6 +82,10 @@ module Enumerable
   def find_by(prop, val)
     find { |elt| elt.__send__(prop) == val }
   end
+
+  def frequencies
+    group_by { |it| it }.map { |k,v| [k,v.size] }.to_h
+  end
 end
 
 # 文字の２次元配列である地形マップを操作するための関数群だ。読み出し、
@@ -198,8 +202,8 @@ EOD
 ■■■■■
 EOD
   chikei = map_from_s(chikei_s)
-  ushiwaka = Character.new('うしわか丸', *positions('う', map_from_s(chara_s)), [0,1])
-  asuka = Character.new('アスカ', *positions('ア', map_from_s(chara_s)), [0,1])
+  ushiwaka = Character.new(Character::USHIWAKAMARU, *positions('う', map_from_s(chara_s)), [0,1])
+  asuka = Character.new(Character::ASUKA, *positions('ア', map_from_s(chara_s)), [0,1])
   characters = Bag[ushiwaka, asuka]
   kaidan_pos = positions('段', map_from_s(kaidan_s)).first
   inventory = Bag[
@@ -208,13 +212,28 @@ EOD
     Item.new(Item::WAND_HIKIYOSE, 1),
   ]
   items = Bag.new
-  ana = Trap.new('落とし穴', *positions('穴', map_from_s(kaidan_s)))
+  ana = Trap.new(Trap::OTOSHIANA, *positions('穴', map_from_s(kaidan_s)))
   traps = Bag[ana]
   kaidan = Kaidan.new(kaidan_pos)
 
   Board.map = chikei
 
   return Board.new(inventory, items, characters, kaidan, traps)
+end
+
+require_relative 'fei'
+require_relative 'board_builder'
+
+# () → Board
+def build_demo_problem
+  path = './第7回ひざくさフェイ問+難.fei2'
+  floor = nil
+  File.open(path, 'r:ASCII-8BIT') do |f|
+    floor = Fei::read_fei2_book(f).floors[49]
+  end
+
+  board = BoardBuilder.new(floor).product
+  return board
 end
 
 # ここで使われた map_from_s と positions のユーティリティ関数は以下のよ
@@ -315,23 +334,23 @@ class Program
     #
     # Board → { Board => [Board, Command] }
 
-    dist = nil
-    score = proc do |board|
-      board.score
-    end
-
     prev = {}
-    queue = PQueue.new { |a, b| score.(a) < score.(b) }
+    queue = PQueue.new { |a, b| a.score < b.score }
     queue << init
-    dist = Hash.new { 1.0/0 }
-    dist[init] = 0
+    prev[init] = nil
+    # visited = Hash.new { false }
+    # visited[init] = true
     
     until queue.empty?
       curr = queue.pop
       # puts curr
-      p [:score, score.(curr)]
-      STDERR.puts "#{queue.size} #{dist.size}"
-      return [curr, prev] if curr.solved?
+      puts
+      p [:score, curr.score]
+      STDERR.puts "#{queue.size} #{prev.size}"
+      if curr.solved?
+        # p visited.keys.map { |b| b.hash % 65536 }.frequencies.values.frequencies
+        return [curr, prev]
+      end
 
       commands(curr).each do |cmd|
         # puts cmd
@@ -354,10 +373,10 @@ class Program
           next 
         end
 
-        if dist[node] == Float::INFINITY
+        if !prev.has_key?(node)
           # puts node
           # p [:score, score(node)]
-          dist[node] = dist[curr] + 1
+          # visited[node] = true
           # p node.hash
           queue << node
           
@@ -367,7 +386,7 @@ class Program
           # puts node
           print '.'
         end
-        STDOUT.flush
+        # STDOUT.flush
       end
     end
 

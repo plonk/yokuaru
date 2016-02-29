@@ -1,3 +1,6 @@
+require_relative 'bag'
+require_relative 'kaidan'
+require_relative 'main' # ぐおお。
 
 class Board
   class << Board
@@ -51,7 +54,7 @@ class Board
   end
 
   def asuka
-    characters.find_by('name', "アスカ") || raise
+    characters.find_by('name', Character::ASUKA) or raise 'asuka not found'
   end
 
   def characters_at(pos)
@@ -165,8 +168,48 @@ class Board
       Map::set!(background, actor.pos, actor.symbol)
     end
 
-    background.map(&:join).map { |s| s + "\n" }.join
+    drop_margins(simplify_chikei(background)).map { |s| s.join + "\n" }.join
   end
+
+  # ----------- マップ描画 -------------
+  def drop_init_blanks(rows)
+    rows.drop_while { |row| row.all? { |elt| elt == '　' } }
+  end
+
+  def drop_margins(chikei)
+    tmp = drop_init_blanks(chikei)
+    tmp = drop_init_blanks(tmp.reverse).reverse
+    tmp = drop_init_blanks(tmp.transpose)
+    tmp = drop_init_blanks(tmp.reverse).reverse
+    tmp.transpose
+  end
+
+  def simplify_chikei(chikei)
+    y_dim = chikei.size
+    x_dim = chikei[0].size
+
+    wall = '■'
+
+    offs = [-1, 0, +1].product([-1, 0, +1]) - [[0,0]]
+    (0...y_dim).map do |y|
+      (0...x_dim).map do |x|
+        neighbours = offs.map { |yoff, xoff| [yoff+y, xoff+x] }
+                     .select { |yy, xx| yy.between?(0, y_dim-1) && xx.between?(0, x_dim-1) }
+
+        if chikei[y][x] == wall
+          if neighbours.any? { |yy, xx| chikei[yy][xx] != wall}
+            wall
+          else
+            '　'
+          end
+        else
+          chikei[y][x]
+        end
+
+      end
+    end
+  end
+  # ----------- マップ描画ココマデ -------------
 
   def solved?
     asuka_on_kaidan?
@@ -196,7 +239,11 @@ class Board
   def _score
     dx = (kaidan.pos[0] - asuka.pos[0]).abs
     dy = (kaidan.pos[1] - asuka.pos[1]).abs
-    return [dx, dy].max
+    s = [dx, dy].max
+    if traps.empty?
+      s -= 5
+    end
+    s
   end
 
   def get_wand
@@ -244,7 +291,6 @@ class Board
 
   # アイテム落下順
   # 
-
   ITEM_DROP_SEQ = generate_item_drop_sequence.freeze
 
   CHARA_RAKKA_TABLE = {

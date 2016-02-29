@@ -2,8 +2,11 @@
 # する。
 #
 class Character < Struct.new(:name, :pos, :dir, :hp)
-  ATTRS = {'うしわか丸' => [10, true],
-           'アスカ' => [15, false]}
+  ASUKA = :'アスカ'
+  USHIWAKAMARU = :'うしわか丸'
+
+  ATTRS = {USHIWAKAMARU => [10, true],
+           ASUKA => [15, false]}
 
   def initialize(name, pos, dir)
     unless ATTRS.has_key?(name)
@@ -28,7 +31,7 @@ class Character < Struct.new(:name, :pos, :dir, :hp)
   end
 
   def hit_by_projectile(board, item, dir, actor)
-    if name == 'うしわか丸'
+    if name == USHIWAKAMARU
       # 物反射を実装する。
 
       # 投擲の行為者はうしわか丸に変更される。
