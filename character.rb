@@ -65,4 +65,15 @@ class Character < Struct.new(:name, :pos, :dir, :hp, :mind_state)
     [name, pos, dir, hp] <=> other.instance_eval { [name, pos, dir, hp] }
   end
 
+  def generate_commands(board)
+    raise 'no AI for ASUKA' if name == ASUKA
+
+    if mind_state != :awake
+      return [Command.create(:nothing)]
+    else
+      # わたしはデブートンです。
+      return [Command.create(:skill)]
+    end
+  end
+
 end

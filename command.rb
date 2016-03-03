@@ -11,11 +11,13 @@ class Command
     # pick: パラメーターなし
     def create(type, *args)
       case type
-      when :move  then CommandMove.new(*args)
-      when :throw then CommandThrow.new(*args)
-      when :drop  then CommandDrop.new(*args)
-      when :pick  then CommandPick.new(*args)
-      when :use   then CommandUse.new(*args)
+      when :move    then CommandMove.new(*args)
+      when :throw   then CommandThrow.new(*args)
+      when :drop    then CommandDrop.new(*args)
+      when :pick    then CommandPick.new(*args)
+      when :use     then CommandUse.new(*args)
+      when :nothing then CommandNothings.new(*args)
+      when :skill   then CommandSkill.new(*args)
       else
         raise ArgumentError, "unknown type #{type}"
       end
@@ -40,7 +42,7 @@ class Command
     return true
   end
 
-  # Board → Board
+  # Board を変更する。
   def execute(board); raise 'abstract method' end
 
   # メッセージ表示に適した形にコマンドを文字列化する。
@@ -283,4 +285,30 @@ class CommandUse < Command
     "#{Vec::dir_to_s(dir)}を向いて#{item}を使う"
   end
 
+end
+
+class CommandNothing < Command
+  def initialize
+  end
+
+  def execute(_board)
+  end
+
+  def to_s
+    "何もしない"
+  end
+end
+
+class CommandSkill < Command
+  def initialize
+  end
+
+  def execute(board)
+    # あすか…コロス…
+    board.asuka.hp = 0
+  end
+
+  def to_s
+    "即死のスキルを使う"
+  end
 end
