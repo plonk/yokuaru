@@ -10,11 +10,13 @@
 # 祝福・呪いなどの追加の状態を持たせたかったら、このクラスにフィールド
 # を追加すると良いだろう。
 #
-class Item < Struct.new(:name, :number, :pos)
+class Item < Struct.new(:name, :number, :pos, :state)
   WAND_BASHOGAE    = :"場所替えの杖"
   WAND_FUKITOBASHI = :"ふきとばしの杖"
   WAND_HIKIYOSE    = :"引きよせの杖"
   HERB_ZASSOU      = :"雑草"
+  HERB_TAKATOBI    = :"高とび草"
+  SCROLL_KOUSAKU   = :"交錯の秘技書"
 
   # メッセージ表示に適した形に文字列化する。
   def to_s
@@ -40,12 +42,37 @@ class Item < Struct.new(:name, :number, :pos)
   # アイテムを actor が使う。
   def use(board, actor)
     case name
-    when Item::WAND_HIKIYOSE
+    when WAND_HIKIYOSE
       use_hikiyose(board, actor)
-    when Item::WAND_BASHOGAE
+    when WAND_BASHOGAE
       use_bashogae(board, actor)
-    when Item::WAND_FUKITOBASHI
+    when WAND_FUKITOBASHI
       use_fukitobashi(board, actor)
+    when HERB_TAKATOBI
+      case state
+      when :blessed
+        board.destroy_item!(self)
+        2.times { board.jump(actor) }
+      when :normal
+        board.destroy_item!(self)
+        board.jump(actor)
+      else
+        # デデ〜ン
+      end
+    when SCROLL_KOUSAKU
+      board.destroy_item!(self)
+      next_pos = Vec::plus(board.asuka.pos, board.asuka.dir)
+      if ['　', '濡'].include? board.get_cell(next_pos)
+        partner = board.character_at(next_pos)
+        if partner
+          board.gomen_nasutte(board.asuka, partner)
+        else
+          board.asuka.pos = next_pos
+        end
+      else
+        # 交錯できずに？元の場所に戻る
+        # 水上のプルンと交錯したらどうなるんだろう？
+      end
     else
       # デフォルトのアイテム使用ルーチン。アイテムの効果は実装しない。
       # 無くなるだけ。
@@ -111,13 +138,13 @@ class Item < Struct.new(:name, :number, :pos)
       do_hikiyose(board, patient.pos, dir)
     when WAND_FUKITOBASHI
       patient.fukitobasareru(board, dir, actor)
-    # when :"高とび草"
-
+    when HERB_TAKATOBI
+      board.jump(patient)
     else
       patient.hp -= 1
-      puts "#{patient.name}に#{self.name}が当たった"
+      # puts "#{patient.name}に#{self.name}が当たった"
       patient.mind_state = :awake
-      p patient
+      # p patient
     end
     
   end
@@ -296,13 +323,14 @@ class Item < Struct.new(:name, :number, :pos)
 
   def hikiyose_move(board, mammal, dir)
     # ひきよせ効果によるキャラクターの移動。dir は魔法弾の方向。
-
-    obstacles = Set.new(board.characters.map(&:pos).to_a + positions('■', board.map) + positions('◆', board.map) + [board.asuka.pos])
+    
+    obstacles = Set.new(board.characters.map(&:pos).to_a + [board.asuka.pos])
     x, y = mammal
     xoff, yoff = dir
 
     loop do
-      if obstacles.include? [x + xoff, y + yoff] 
+      pos = [x + xoff, y + yoff] 
+      if ['■', '◆'].include?(board.get_cell(pos)) || obstacles.include?(pos)
         break
       else
         x += xoff

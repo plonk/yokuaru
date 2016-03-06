@@ -51,6 +51,7 @@ class Character < Struct.new(:name, :pos, :dir, :hp, :mind_state)
       item.pos = self.pos
       item.fukitobasareru(board, Vec::opposite_of(dir), self)
     else
+      self.mind_state = :awake
       item.hit_effect(board, self, dir, actor)
     end
 

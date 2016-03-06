@@ -169,6 +169,12 @@ module Vec
   end
   module_function :opposite_of
 
+  # チェス盤距離
+  def distance(u, v)
+    [(u[0] - v[0]).abs, (u[1] - v[1]).abs].max
+  end
+  module_function :distance
+
 end
 
 require_relative 'fei'
@@ -230,23 +236,32 @@ class Program
     # 云々――。それぞれの方向について、アイテムを拾う場合と拾わない場
     # 合の二種類がある。
     cmds += Command::DIRS.flat_map { |d|
-      [CommandMove.new(d, true),
-       CommandMove.new(d, false)]
+      pos = Vec::plus(board.asuka.pos, d)
+      if !board.character_at(pos) && ['　', '濡'].include?(board.get_cell(pos))
+        # if board.item_at( pos  )
+        #   [CommandMove.new(d, true),
+        #    CommandMove.new(d, false)]
+        # else
+          [CommandMove.new(d, true)]
+        # end
+      else
+        []
+      end
     }
 
     # アイテムに対して行なうコマンド。
     cmds += Command::DIRS.flat_map { |d|
       board.inventory.flat_map { |item|
-        [CommandThrow.new(d, item) ] + 
+        # [CommandThrow.new(d, item) ] + 
           [CommandUse.new(d, item)]
       }
     }
 
-    cmds += board.inventory.to_a.uniq.map { |item|
-      CommandDrop.new(item)
-    }
+    # cmds += board.inventory.to_a.uniq.map { |item|
+    #   CommandDrop.new(item)
+    # }
 
-    cmds += [ CommandPick.new ]
+    # cmds += [ CommandPick.new ]
 
     return cmds
   end
@@ -267,6 +282,8 @@ class Program
     queue = PQueue.new { |a, b| a.score < b.score }
     queue << init
     prev[init] = nil
+    curr = nil
+    trap(:SIGINT) { puts curr; gets }
     
     until queue.empty?
       curr = queue.pop
@@ -281,6 +298,7 @@ class Program
         node = curr.deep_copy
         cmd.execute(node)
         node.asuka.dir = [0,1]
+        node.monster_phase
 
         node.set_score
         node.set_hash
@@ -299,9 +317,9 @@ class Program
           queue << node
           
           prev[node] = [curr, cmd]
-          print '*'
+          print 'O'
         else
-          print '.'
+          print 'x'
         end
       end
     end
@@ -398,14 +416,13 @@ end
 def throw_trajectory(board, pos, dir)
   res = []
   charas = (board.characters.map(&:pos) + [board.asuka.pos]).to_set
-  walls = (positions('■', board.map) + positions('◆', board.map)).to_set
   xoff, yoff = dir
 
   loop do
     res << [pos, dir]
     if res.size > 1 && charas.include?(pos)
       break
-    elsif walls.include?(Vec::plus(pos, dir))
+    elsif ['■', '◆'].include? board.get_cell(Vec::plus(pos, dir))
       break
     else
       pos = Vec::plus(pos, dir)
@@ -430,9 +447,12 @@ def normal_bullet_trajectory(board, dir)
   res
 end
 
+def obstacle?(cell)
+  ['■', '◆'].include? cell
+end
+
 def max_trajectory(board, pos, dir)
   # この際、壁と岩を同一視する。
-  walls      = positions('■', board.map) + positions('◆', board.map)
   reflected  = false
 
   Enumerator.new do |yielder|
@@ -453,12 +473,12 @@ def max_trajectory(board, pos, dir)
       # CASE D: (x', y) も (x, y') も壁でない場合 → 角反射。
       # 
       # CASE C は内角に向かってつっこんだ場合。CASE D は角反射になる。
-      if walls.include? [x + xoff, y + yoff]
+      if obstacle? board.get_cell([x + xoff, y + yoff])
         if xoff * yoff == 0
           break
         else
-          a = walls.include?([x + xoff, y])
-          b = walls.include?([x, y + yoff])
+          a = obstacle?(board.get_cell([x + xoff, y]))
+          b = obstacle?(board.get_cell([x, y + yoff]))
           # p [a, b]
           case [a, b]
           when [true, false]

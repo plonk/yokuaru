@@ -11,12 +11,13 @@ class Command
     # pick: パラメーターなし
     def create(type, *args)
       case type
+      when :attack  then CommandAttack.new(*args)
       when :move    then CommandMove.new(*args)
       when :throw   then CommandThrow.new(*args)
       when :drop    then CommandDrop.new(*args)
       when :pick    then CommandPick.new(*args)
       when :use     then CommandUse.new(*args)
-      when :nothing then CommandNothings.new(*args)
+      when :nothing then CommandNothing.new(*args)
       when :skill   then CommandSkill.new(*args)
       else
         raise ArgumentError, "unknown type #{type}"
@@ -310,5 +311,28 @@ class CommandSkill < Command
 
   def to_s
     "即死のスキルを使う"
+  end
+end
+
+class CommandAttack < Command
+  # 誰が、どこへ向かって、攻撃するか。
+  #
+  # キャラクターオブジェクトへの参照を持つとまずい事になりそうな気がする。
+  def initialize(actor, dir)
+    @actor = actor
+    @dir = dir
+  end
+
+  def execute(board)
+    target = Vec::plus(@actor.pos, @dir)
+    patient = board.character_at(target)
+    return unless patient
+    
+    patient.hp -= 1
+    patient.mind_state = :awake
+  end
+
+  def to_s
+    "#{@actor.name}は#{dir.inspect}に攻撃する"
   end
 end

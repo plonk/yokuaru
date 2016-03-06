@@ -153,6 +153,9 @@ module Fei
   end
 
   class Item < Struct.new(:y, :x, :kind, :num, :flags)
+    Item::BLESSED_MASK = 0x02
+    Item::CURSED_MASK  = 0x04
+    
     def name
       ITEM_KIND[kind] or raise "unregistered item (#{kind})"
     end

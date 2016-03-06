@@ -50,11 +50,23 @@ class BoardBuilder
     return fei_characters.map { |c| convert_character(c) }
   end
 
+  # 識別済みフラグのことを考えていないな。
+  def item_state(flags)
+    if Fei::Item::BLESSED_MASK & flags != 0
+      return :blessed
+    elsif Fei::Item::CURSED_MASK & flags != 0
+      return :cursed
+    else
+      return :normal
+    end
+  end
+
   def convert_items(fei_items)
     return fei_items.map { |item|
       pos = [item.x, item.y]
       name = item.name.to_sym
-      Item.new(name, item.num, pos)
+      state = item_state(item.flags)
+      Item.new(name, item.num, pos, state)
     }
   end
 
@@ -80,7 +92,7 @@ class BoardBuilder
     traps = Bag[*convert_traps(floor.traps)]
     kaidan = Kaidan.new([floor.stairs_x, floor.stairs_y])
 
-    return Board.new(inventory, items, characters, kaidan, traps)
+    return Board.new(inventory, items, characters, kaidan, traps, floor.rooms)
   end
 
 end
